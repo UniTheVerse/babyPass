@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>baby world</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 40px 20px;
+      font-family: 'Share Tech Mono', monospace;
+      text-align: center;
+      transition: background-color 0.3s, color 0.3s;
+    }
+    body.light { background: #f0f0f0; color: #222; }
+    body.dark { background: #0d0d0d; color: #33ff33; }
+    h1 { font-size: 3rem; color: #ff0033; margin-bottom: 10px; text-shadow: 0 0 10px #ff0033; }
+    input, select {
+      padding: 10px; font-size: 16px;
+      border-radius: 5px; margin: 5px;
+    }
+    input[type="text"] {
+      border: 1px solid #33ff33;
+      background-color: #1a1a1a; color: #33ff33; width: 300px;
+    }
+    button {
+      padding: 12px 22px; font-size: 16px; border-radius: 5px;
+      border: 1px solid #33ff33; background: #222;
+      color: #33ff33; margin: 5px; cursor: pointer;
+    }
+    button:hover {
+      background-color: #33ff33; color: #000;
+    }
+    iframe {
+      width: 90%; max-width: 900px; height: 60vh;
+      margin-top: 30px; border: 2px solid #444; background: #000;
+    }
+    #modal {
+      display: none; position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%; background: rgba(0,0,0,0.8);
+      color: white; z-index: 1000;
+      justify-content: center; align-items: center;
+    }
+    #modalContent {
+      background: #111; padding: 20px; border-radius: 8px;
+      border: 1px solid #33ff33; max-width: 400px;
+    }
+    footer { margin-top: 50px; font-size: 0.85rem; }
+
+    ::selection { background: #33ff33; color: #000; }
+  </style>
+</head>
+<body class="dark">
+  <h1>Bypass</h1>
+  <p>Enter a target URL preview before download!</p>
+
+  <input type="text" id="urlInput" placeholder="https://IloveCooper.com" />
+  <div>
+    <button onclick="previewEmbed()">Preview</button>
+    <button onclick="generateHTML()">Generate .html</button>
+    <button onclick="toggleTheme()">🌙/☀️ Mode</button>
+  </div>
+
+  <select id="historyDropdown" onchange="loadFromHistory()">
+    <option value="">🔁 Recent URLs</option>
+  </select>
+
+  <iframe id="previewFrame"></iframe>
+
+  <!-- Modal -->
+  <div id="modal">
+    <div id="modalContent">
+      <button onclick="confirmEmbed()">Continue</button>
+      <button onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+
+  <footer>© 2025 BabyWorld. All rights not Reserved.</footer>
+
+  <script>
+    const urlInput = document.getElementById('urlInput');
+    const historyDropdown = document.getElementById('historyDropdown');
+    const previewFrame = document.getElementById('previewFrame');
+    const modal = document.getElementById('modal');
+
+    let pendingURL = '';
+
+    function fixURL(url) {
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        return 'https://' + url;
+      }
+      return url;
+    }
+
+    function isSafeURL(url) {
+      const badSchemes = ['javascript:', 'data:', 'file:', 'vbscript:'];
+      const lowered = url.toLowerCase();
+      for (const scheme of badSchemes) {
+        if (lowered.startsWith(scheme)) return false;
+      }
+
+      try {
+        const parsed = new URL(url);
+        return parsed.hostname.includes('.') && parsed.protocol.startsWith('http');
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function saveToHistory(url) {
+      let history = JSON.parse(localStorage.getItem('urlHistory')) || [];
+      if (!history.includes(url)) {
+        history.unshift(url);
+        if (history.length > 10) history.pop();
+        localStorage.setItem('urlHistory', JSON.stringify(history));
+        updateHistoryDropdown();
+      }
+    }
+
+    function updateHistoryDropdown() {
+      const history = JSON.parse(localStorage.getItem('urlHistory')) || [];
+      historyDropdown.innerHTML = '<option value="">🔁 Recent URLs</option>';
+      history.forEach(url => {
+        const option = document.createElement('option');
+        option.value = url;
+        option.textContent = url;
+        historyDropdown.appendChild(option);
+      });
+    }
+
+    function loadFromHistory() {
+      const selected = historyDropdown.value;
+      if (selected) {
+        urlInput.value = selected;
+        previewEmbed();
+      }
+    }
+
+    function previewEmbed() {
+      const rawUrl = urlInput.value.trim();
+      const safeUrl = fixURL(rawUrl);
+
+      if (!rawUrl || !isSafeURL(safeUrl)) {
+        alert("Invalid or potentially unsafe URL.");
+        return;
+      }
+
+      pendingURL = safeUrl;
+      modal.style.display = 'flex';
+    }
+
+    function confirmEmbed() {
+      modal.style.display = 'none';
+      previewFrame.src = pendingURL;
+      saveToHistory(pendingURL);
+      pendingURL = '';
+    }
+
+    function closeModal() {
+      modal.style.display = 'none';
+      pendingURL = '';
+    }
+
+    function generateHTML() {
+      const rawUrl = urlInput.value.trim();
+      const url = fixURL(rawUrl);
+
+      if (!rawUrl || !isSafeURL(url)) {
+        alert("Invalid or unsafe URL.");
+        return;
+      }
+
+      const pageTitle = "Embedded Page";
+
+      const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>${pageTitle}</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;color:#33ff33;}
+  iframe{border:none;width:100vw;height:100vh}
+</style></head>
+<body><iframe src="${url}" allowfullscreen></iframe></body></html>`;
+
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${pageTitle.replace(/\s+/g, '_')}.html`;
+      a.click();
+      saveToHistory(url);
+    }
+
+    function toggleTheme() {
+      const body = document.body;
+      const current = body.classList.contains('dark') ? 'dark' : 'light';
+      const newTheme = current === 'dark' ? 'light' : 'dark';
+      body.classList.remove(current);
+      body.classList.add(newTheme);
+      localStorage.setItem('theme', newTheme);
+    }
+
+    function loadTheme() {
+      const saved = localStorage.getItem('theme') || 'dark';
+      document.body.classList.add(saved);
+    }
+
+    loadTheme();
+    updateHistoryDropdown();
+  </script>
+</body>
+</html>
